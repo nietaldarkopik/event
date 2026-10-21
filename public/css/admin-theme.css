@@ -1,0 +1,147 @@
+/* Tema admin EVENT UNWIM: kampus formal (hijau & emas dari logo UNWIM) di atas AdminLTE 3 */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    --u-primary: #15803d;
+    --u-primary-dark: #14532d;
+    --u-primary-soft: #dcfce7;
+    --u-accent: #ca8a04;
+    --u-accent-soft: #fef9c3;
+    --u-bg: #f5f7f6;
+    --u-surface: #ffffff;
+    --u-border: #e3e8e5;
+    --u-text: #1f2937;
+    --u-muted: #6b7280;
+    --u-radius: 10px;
+    --u-shadow: 0 1px 2px rgba(16, 24, 20, .05), 0 2px 8px rgba(16, 24, 20, .05);
+}
+
+body, .main-header, .main-sidebar, .content-wrapper, .btn, .form-control, .card, .table, .dropdown-menu, .nav-link {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+body { color: var(--u-text); font-size: .94rem; -webkit-font-smoothing: antialiased; }
+.content-wrapper { background: var(--u-bg); }
+.content-header h1 { font-size: 1.45rem; font-weight: 700; color: var(--u-primary-dark); }
+
+/* ---------- Sidebar ---------- */
+.main-sidebar { background: linear-gradient(180deg, #14532d 0%, #0f3d21 100%) !important; box-shadow: none; }
+.brand-link { border-bottom: 1px solid rgba(255, 255, 255, .12) !important; padding: .9rem 1rem; }
+.brand-link .brand-text { font-weight: 700; letter-spacing: .04em; color: #fff; }
+.brand-link .brand-image { max-height: 36px; margin-top: -2px; }
+.sidebar .nav-header { color: #fde68a; font-size: .68rem; font-weight: 600; letter-spacing: .1em; padding: 1rem 1rem .35rem; opacity: .9; }
+.sidebar .nav-sidebar .nav-link { color: rgba(255, 255, 255, .78); border-radius: 8px; margin: 1px 8px; padding: .5rem .75rem; transition: background .15s, color .15s; }
+.sidebar .nav-sidebar .nav-link:hover { background: rgba(255, 255, 255, .09); color: #fff; }
+.sidebar .nav-sidebar .nav-link.active,
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link.active {
+    background: rgba(255, 255, 255, .14) !important; color: #fff !important; box-shadow: inset 3px 0 0 #facc15; font-weight: 600;
+}
+.sidebar .nav-icon { opacity: .85; }
+
+/* ---------- Navbar ---------- */
+.main-header.navbar { background: var(--u-surface) !important; border-bottom: 1px solid var(--u-border) !important; box-shadow: none; }
+.main-header .nav-link { color: var(--u-muted); }
+.main-header .nav-link:hover { color: var(--u-primary); }
+
+/* ---------- Card ---------- */
+.card { border: 1px solid var(--u-border); border-radius: var(--u-radius); box-shadow: var(--u-shadow); }
+.card-header { background: transparent; border-bottom: 1px solid var(--u-border); font-weight: 600; padding: .85rem 1.1rem; }
+.card-footer { background: transparent; border-top: 1px solid var(--u-border); }
+.card-primary.card-outline, .card-info.card-outline { border-top: 3px solid var(--u-primary); }
+.card-secondary.card-outline { border-top: 3px solid #9ca3af; }
+.card-outline.card-info { border-top-color: var(--u-primary); }
+
+/* ---------- Tombol ---------- */
+.btn { border-radius: 8px; font-weight: 500; padding: .42rem .9rem; transition: all .15s; }
+.btn-sm { padding: .28rem .65rem; border-radius: 7px; }
+.btn-primary { background: var(--u-primary); border-color: var(--u-primary); }
+.btn-primary:hover, .btn-primary:focus, .btn-primary:not(:disabled):not(.disabled):active { background: var(--u-primary-dark); border-color: var(--u-primary-dark); }
+.btn-outline-primary { color: var(--u-primary); border-color: var(--u-primary); }
+.btn-outline-primary:hover { background: var(--u-primary); border-color: var(--u-primary); color: #fff; }
+.btn-warning { background: #facc15; border-color: #facc15; color: #422006; }
+.btn-warning:hover { background: #eab308; border-color: #eab308; color: #422006; }
+.btn-success { background: #16a34a; border-color: #16a34a; }
+.btn-secondary { background: #6b7280; border-color: #6b7280; }
+a { color: var(--u-primary); }
+a:hover { color: var(--u-primary-dark); }
+.text-primary { color: var(--u-primary) !important; }
+.badge-primary, .bg-primary { background-color: var(--u-primary) !important; }
+
+/* ---------- Form ---------- */
+.form-control, .custom-select { border-radius: 8px; border-color: #d1d9d4; height: auto; padding: .5rem .75rem; }
+.form-control-sm { padding: .3rem .6rem; border-radius: 7px; }
+.form-control:focus, .custom-select:focus { border-color: var(--u-primary); box-shadow: 0 0 0 3px rgba(21, 128, 61, .15); }
+label { font-weight: 500; color: #374151; }
+.custom-control-input:checked ~ .custom-control-label::before { background-color: var(--u-primary); border-color: var(--u-primary); }
+.custom-switch .custom-control-label::before { border-radius: 1rem; }
+
+/* ---------- Tabel ---------- */
+.table { color: var(--u-text); }
+.table thead th { background: #f0f4f1; color: #374151; font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; border-top: 0; border-bottom: 1px solid var(--u-border); }
+.table td, .table th { border-color: #edf0ee; vertical-align: middle; padding: .7rem .75rem; }
+.table-striped tbody tr:nth-of-type(odd) { background: #fafbfa; }
+.table-hover tbody tr:hover, .table-striped tbody tr:hover { background: var(--u-primary-soft); }
+.table-bordered, .table-bordered td, .table-bordered th { border-color: #edf0ee; }
+.dataTables_wrapper .page-item.active .page-link { background: var(--u-primary); border-color: var(--u-primary); }
+.page-link { color: var(--u-primary); border-radius: 6px; margin: 0 2px; }
+
+/* ---------- Komponen lain ---------- */
+.alert { border-radius: var(--u-radius); border: 0; }
+.nav-pills .nav-link { border-radius: 8px; }
+.nav-pills .nav-link.active, .nav-pills .show > .nav-link { background: var(--u-primary); }
+.dropdown-menu { border: 1px solid var(--u-border); border-radius: var(--u-radius); box-shadow: 0 8px 24px rgba(16, 24, 20, .12); }
+.dropdown-item:active, .dropdown-item.active { background: var(--u-primary); }
+.badge { border-radius: 6px; font-weight: 600; }
+.small-box, .info-box { border-radius: var(--u-radius); box-shadow: var(--u-shadow); }
+.main-footer { background: transparent; border-top: 1px solid var(--u-border); color: var(--u-muted); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #cbd5cf; border-radius: 8px; }
+
+/* ---------- Login ---------- */
+.login-page, .register-page { background: linear-gradient(135deg, #14532d 0%, #166534 55%, #854d0e 140%); }
+.login-box .card, .register-box .card { border: 0; border-radius: 14px; box-shadow: 0 20px 50px rgba(0, 0, 0, .25); }
+.login-logo a, .register-logo a { color: #fff; font-weight: 700; }
+
+/* ---------- Wizard event ---------- */
+#wz-nav .nav-link { background: var(--u-surface); border: 1px solid var(--u-border); color: var(--u-muted); font-weight: 500; }
+#wz-nav .nav-link:hover { border-color: var(--u-primary); color: var(--u-primary); }
+#wz-nav .nav-link.active { background: var(--u-primary); border-color: var(--u-primary); color: #fff; box-shadow: 0 4px 12px rgba(21, 128, 61, .3); }
+.wz-ok { color: #16a34a; }
+
+/* Konten dari editor teks kaya */
+.rich-content { overflow-wrap: anywhere; }
+.rich-content img { max-width: 100%; height: auto; border-radius: 6px; }
+.rich-content table { border-collapse: collapse; max-width: 100%; margin: .75rem 0; }
+.rich-content table td, .rich-content table th { border: 1px solid #cfd6d2; padding: .4rem .6rem; vertical-align: top; }
+.rich-content table th { background: #f1f5f2; font-weight: 600; }
+.rich-content blockquote { border-left: 4px solid #b8923a; margin: .75rem 0; padding: .25rem 1rem; color: #6b7280; }
+.rich-content ul, .rich-content ol { padding-left: 1.4rem; }
+.rich-content p:last-child { margin-bottom: 0; }
+.rich-content a { text-decoration: underline; }
+
+/* ---------- Perapian tabel admin (dipasang oleh js/admin-tidy.js) ---------- */
+/* teks panjang: maksimal 320px, dipotong dengan titik-titik; teks lengkap di tooltip (atribut title) */
+td.dt-clamp { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tidy-wrap { border-radius: 8px; }
+.table-responsive > .table td:last-child, .table-responsive > .table th:last-child { white-space: nowrap; }
+div.dataTables_wrapper div.dataTables_info { font-size: .85rem; color: #6b7280; padding-top: .9rem; }
+div.dataTables_wrapper div.dataTables_filter input { border-radius: 8px; border: 1px solid #d1d9d4; padding: .35rem .7rem; margin-left: .4rem; }
+div.dataTables_wrapper div.dataTables_length select { border-radius: 8px; border: 1px solid #d1d9d4; padding: .25rem .5rem; }
+table.dataTable thead th { white-space: nowrap; }
+/* kartu ringkas untuk halaman daftar yang sudah didesain ulang */
+.list-title { font-weight: 600; color: #14532d; line-height: 1.25; }
+.list-sub { font-size: .8rem; color: #6b7280; }
+.list-chip { display: inline-block; background: #dcfce7; color: #166534; border-radius: 20px; padding: 0 .55rem; font-size: .72rem; font-weight: 600; margin-right: .35rem; }
+.list-toggle { cursor: pointer; text-align: center; color: #6b7280; width: 28px; }
+.list-toggle i { transition: transform .15s; }
+tr.list-open .list-toggle i { transform: rotate(90deg); color: #15803d; }
+.list-child { background: #f8faf8; border: 1px solid #e3e8e5; border-radius: 10px; padding: 1rem 1.25rem; margin: .25rem 0 .5rem 2.2rem; }
+.avatar-sm { width: 40px; height: 40px; border-radius: 50%; background: #e8efe9 center/cover no-repeat; color: #86a38f; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px; }
+
+/* Kolom Aksi tetap terlihat di tabel lebar (menempel di kanan saat digeser) */
+.tidy-wrap > .table th:last-child, .tidy-wrap > .table td:last-child,
+.tidy-wrap .dataTable th:last-child, .tidy-wrap .dataTable td:last-child { position: sticky; right: 0; z-index: 2; background: #fff; box-shadow: -8px 0 10px -8px rgba(16, 24, 20, .18); }
+.tidy-wrap > .table th:last-child, .tidy-wrap .dataTable th:last-child { background: #f0f4f1; }
+.tidy-wrap .table-striped tbody tr:nth-of-type(odd) td:last-child { background: #fafbfa; }
+.tidy-wrap .table-hover tbody tr:hover td:last-child { background: #dcfce7; }
+/* pilihan "Tampilkan N baris" tidak boleh menyempit */
+div.dataTables_wrapper div.dataTables_length select { width: auto !important; min-width: 74px; padding-right: 1.8rem; background-position: right .5rem center; }

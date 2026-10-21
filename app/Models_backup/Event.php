@@ -1,0 +1,122 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Event extends Model
+{
+    protected $fillable = [
+        'slug',
+        'title',
+        'event_type',
+        'event_category_id',
+        'description',
+        'rules',
+        'start_datetime',
+        'end_datetime',
+        'location',
+        'location_link',
+        'meeting_link',
+        'organizer_unit',
+        'contact_whatsapp',
+        'wa_pertanian',
+        'wa_kehutanan',
+        'wa_teknik',
+        'wa_ekonomi',
+        'banner_image',
+        'allow_certificate',
+        'is_internal',
+        'is_paid',
+        'price',
+        'status',
+        'created_by',
+        'invitation_template_id',
+        'has_seat_number',
+        'participant_quota',
+    ];
+
+    protected $casts = [
+        'start_datetime' => 'datetime',
+        'end_datetime' => 'datetime',
+        'is_internal' => 'boolean',
+        'is_paid' => 'boolean',
+        'has_seat_number' => 'boolean',
+        'participant_quota' => 'integer',
+    ];
+
+    public function rundowns()
+    {
+        return $this->hasMany(EventRundown::class);
+    }
+
+    public function participants()
+    {
+        return $this->hasMany(Participant::class);
+    }
+
+    public function attendanceLogs()
+    {
+        return $this->hasMany(AttendanceLog::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function certificates()
+    {
+        return $this->hasMany(Certificate::class);
+    }
+
+    public function invitationTemplate()
+    {
+        return $this->belongsTo(InvitationTemplate::class, 'invitation_template_id');
+    }
+
+    public function certificateCategories()
+    {
+        return $this->hasMany(CertificateCategory::class);
+    }
+
+    public function certificateLogos()
+    {
+        return $this->hasMany(CertificateLogo::class);
+    }
+
+    public function certificateSignatures()
+    {
+        return $this->hasMany(CertificateSignature::class);
+    }
+
+    public function retrievalCodes()
+    {
+        return $this->hasMany(CertificateRetrievalCode::class);
+    }
+
+    public function certificateAuditLogs()
+    {
+        return $this->hasMany(CertificateAuditLog::class);
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(EventCategory::class, 'event_category_id');
+    }
+
+    public static function getEventTypes()
+    {
+        return [
+            'rapat' => 'Rapat Internal',
+            'seminar' => 'Seminar',
+            'workshop' => 'Workshop',
+            'wisuda' => 'Wisuda',
+            'kuliah_umum' => 'Kuliah Umum',
+            'lomba' => 'Lomba / Kompetisi',
+            'pelatihan' => 'Pelatihan',
+            'pengabdian' => 'Pengabdian Masyarakat',
+        ];
+    }
+}

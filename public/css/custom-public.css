@@ -1,0 +1,234 @@
+:root {
+    --primary-color: #2563eb;
+    --secondary-color: #475569;
+    --accent-color: #f59e0b;
+    --bg-light: #f8fafc;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--bg-light);
+    color: #1e293b;
+}
+
+/* Navbar */
+.navbar {
+    background-color: white !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    padding: 1rem 0;
+    z-index: 1050;
+    /* Ensure navbar is above all content */
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: #0f172a !important;
+}
+
+.navbar-brand span {
+    color: var(--primary-color);
+}
+
+.nav-link {
+    font-weight: 500;
+    color: #64748b !important;
+    margin-left: 1rem;
+    transition: color 0.3s;
+}
+
+.nav-link:hover {
+    color: var(--primary-color) !important;
+}
+
+/* Hero Section */
+.hero-section {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+    color: white;
+    padding: 100px 0;
+    margin-bottom: 50px;
+    border-radius: 0 0 50px 50px;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('https://www.transparenttextures.com/patterns/cubes.png');
+    opacity: 0.1;
+}
+
+/* Navbar Animations */
+.navbar-brand {
+    transition: all 0.3s;
+}
+
+.navbar-brand:hover {
+    transform: scale(1.05);
+}
+
+.nav-link {
+    position: relative;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 2px;
+    bottom: 0;
+    left: 50%;
+    background-color: var(--primary-color);
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+
+.nav-link:hover::after {
+    width: 80%;
+}
+
+/* Card Hover Effects */
+.card {
+    border: none;
+    border-radius: 15px;
+    background: white;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    /* Bouncy effect */
+    overflow: hidden;
+}
+
+.card:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 20px 30px -10px rgba(37, 99, 235, 0.2);
+}
+
+.event-card:hover {
+    /* Handled by .card:hover above */
+}
+
+/* Card Ultra (Premium) */
+.card-ultra {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+    z-index: 2;
+}
+
+.card-ultra:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.2);
+    border-color: var(--primary-color);
+}
+
+/* Modern Primary Button */
+.btn-primary-modern {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    color: white !important;
+    border: none;
+    box-shadow: 0 4px 15px -3px rgba(37, 99, 235, 0.4);
+}
+
+.btn-primary-modern:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.5);
+}
+
+/* Button Animations */
+.btn {
+    border-radius: 50px;
+    /* Pill shape is more modern */
+    padding: 10px 25px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.3);
+}
+
+.btn:active {
+    transform: translateY(-1px);
+}
+
+/* Hero Animation */
+.hero-section {
+    background: linear-gradient(135deg, #0f172a 0%, #1e40af 100%);
+    color: white;
+    padding: 120px 0 100px;
+    margin-bottom: 60px;
+    border-radius: 0 0 50% 10%/20px;
+    /* Curve effect */
+    position: relative;
+    overflow: hidden;
+    animation: gradientBG 15s ease infinite;
+    background-size: 200% 200%;
+}
+
+@keyframes gradientBG {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* Buttons */
+.btn {
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border: none;
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+}
+
+.btn-primary:hover {
+    background-color: #1d4ed8;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.4);
+}
+
+.footer {
+    background: #0f172a;
+    color: #94a3b8;
+    padding: 60px 0;
+    margin-top: 80px;
+}
+
+.footer h5 {
+    color: white;
+}
+/* Konten dari editor teks kaya */
+.rich-content { overflow-wrap: anywhere; }
+.rich-content img { max-width: 100%; height: auto; border-radius: 6px; }
+.rich-content table { border-collapse: collapse; max-width: 100%; margin: .75rem 0; }
+.rich-content table td, .rich-content table th { border: 1px solid #cfd6d2; padding: .4rem .6rem; vertical-align: top; }
+.rich-content table th { background: #f1f5f2; font-weight: 600; }
+.rich-content blockquote { border-left: 4px solid #b8923a; margin: .75rem 0; padding: .25rem 1rem; color: #6b7280; }
+.rich-content ul, .rich-content ol { padding-left: 1.4rem; }
+.rich-content p:last-child { margin-bottom: 0; }
+.rich-content a { text-decoration: underline; }
