@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\WaLog;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -73,16 +74,30 @@ class WhatsAppService
      * Kirim teks lewat Blaster API v1. Pesan masuk antrean (202), jadi statusnya 'pending'
      * sampai blaster mengirimnya; id pesan disimpan di response_message untuk pelacakan.
      */
-    private static function sendViaBlaster($participant, WaLog $log, string $message): bool
+    private static function sendViaBlaster($participant, WaLog $log, string $message, ?string $imageUrl = null, ?string $caption = null): bool
     {
-        $response = Http::timeout(15)
-            ->withToken(config('services.wa_blaster.key'))
-            ->acceptJson()
-            ->post(rtrim(config('services.wa_blaster.url'), '/') . '/messages', array_filter([
-                'to'      => $participant->whatsapp,
-                'message' => $message,
-                'account' => config('services.wa_blaster.account') ?: null,
-            ]));
+        $payload = array_filter([
+            'to'            => $participant->whatsapp,
+            'message'       => $message,
+            'account'       => self::pickBlasterAccount($imageUrl && $caption !== $message ? 2 : 1),
+            'image_url'     => $imageUrl,
+            'image_caption' => $caption,
+        ]);
+
+        // Kena batas kecepatan (429 + Retry-After): tunggu sebentar lalu coba lagi, maksimal 3 kali.
+        for ($attempt = 0; ; $attempt++) {
+            $response = Http::timeout(15)
+                ->withToken(config('services.wa_blaster.key'))
+                ->acceptJson()
+                ->post(rtrim(config('services.wa_blaster.url'), '/') . '/messages', $payload);
+
+            $wait = (int) $response->header('Retry-After');
+            if ($response->status() === 429 && $wait > 0 && $attempt < 3) {
+                sleep(min($wait, 15));
+                continue;
+            }
+            break;
+        }
 
         if ($response->status() === 202 && $response->json('ok') === true) {
             $log->update([
@@ -101,6 +116,101 @@ class WhatsAppService
         return false;
     }
 
+    /**
+     * Perbarui log berstatus 'pending' yang berasal dari antrean Blaster (response_message "queued id=...")
+     * dengan menanyakan status pesannya ke Blaster: sent -> 'sent', failed/cancelled -> 'failed'.
+     * Gagal menghubungi Blaster tidak mengubah apa pun (tetap 'pending').
+     */
+    public static function syncBlasterStatuses($logs): void
+    {
+        if (!self::useBlaster()) {
+            return;
+        }
+        $base = rtrim(config('services.wa_blaster.url'), '/');
+
+        foreach ($logs as $log) {
+            $tracked = $log->status === 'pending' && preg_match('/^queued id=(\w+)/', (string) $log->response_message, $m);
+            // Yang sudah 'sent' tetap dipantau sampai terbaca (maks. 3 hari), untuk info sampai/dibaca.
+            if (!$tracked && !($log->status === 'sent' && $log->created_at && $log->created_at->gt(now()->subDays(3))
+                && preg_match('/^ok \(id=(\w+)\)(?!.*Dibaca)/', (string) $log->response_message, $m))) {
+                continue;
+            }
+            try {
+                $r = Http::timeout(5)->withToken(config('services.wa_blaster.key'))->acceptJson()->get($base . '/messages/' . $m[1]);
+            } catch (\Throwable $e) {
+                Log::warning('[WA] Blaster status sync failed', ['error' => $e->getMessage()]);
+                return; // Blaster tidak terjangkau: jangan tunggu timeout untuk tiap baris
+            }
+            if ($r->status() === 404) {
+                $log->update(['status' => 'failed', 'response_message' => 'Pesan tidak ditemukan di antrean Blaster (id=' . $m[1] . ')']);
+                continue;
+            }
+            $status = $r->json('status');
+            if ($status === 'sent') {
+                $info = $r->json('delivery') === 'read' ? ' · Dibaca ' . date('d/m H:i', intdiv((int) $r->json('readAt'), 1000))
+                    : ($r->json('delivery') === 'delivered' ? ' · Sampai di HP ' . date('H:i', intdiv((int) $r->json('deliveredAt'), 1000)) : '');
+                $msg = 'ok (id=' . $m[1] . ')' . $info;
+                if ($log->status !== 'sent' || $log->response_message !== $msg) {
+                    $log->update(['status' => 'sent', 'response_message' => $msg, 'sent_at' => $log->sent_at ?: now()]);
+                }
+            } elseif (in_array($status, ['failed', 'cancelled'], true)) {
+                $log->update(['status' => 'failed', 'response_message' => ($r->json('error') ?: $status) . ' (id=' . $m[1] . ')']);
+            }
+        }
+    }
+
+    /** Id akun Blaster yang dipakai mengirim (WA_BLASTER_ACCOUNTS, atau WA_BLASTER_ACCOUNT). Kosong = default Blaster. */
+    private static function blasterAccountIds(): array
+    {
+        $list = array_values(array_filter(array_map('trim', explode(',', (string) config('services.wa_blaster.accounts')))));
+        if ($list) {
+            return $list;
+        }
+        $one = config('services.wa_blaster.account');
+
+        return $one ? [$one] : [];
+    }
+
+    /**
+     * Pilih nomor pengirim. Satu nomor: langsung dipakai. Beberapa nomor: pilih yang tersambung dengan
+     * sisa kuota hari ini (kuota - terpakai - antre) terbesar, supaya beban terbagi sesuai kapasitas
+     * masing-masing dan pesan tidak menumpuk di nomor yang penuh/mati. $weight = jumlah chat pesan ini.
+     */
+    private static function pickBlasterAccount(int $weight = 1): ?string
+    {
+        $ids = self::blasterAccountIds();
+        if (count($ids) <= 1) {
+            return $ids[0] ?? null;
+        }
+
+        $remaining = Cache::get('wa_blaster_remaining');
+        if (!is_array($remaining)) {
+            $remaining = [];
+            try {
+                $r = Http::timeout(5)->withToken(config('services.wa_blaster.key'))->acceptJson()
+                    ->get(rtrim(config('services.wa_blaster.url'), '/') . '/accounts');
+                foreach ((array) $r->json('accounts') as $a) {
+                    if (in_array($a['id'], $ids, true) && !empty($a['connected'])) {
+                        $q = $a['quota'] ?? [];
+                        $remaining[$a['id']] = (int) ($q['limit'] ?? 0) - (int) ($q['used'] ?? 0) - (int) ($q['queued'] ?? 0);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('[WA] Blaster accounts check failed (pick account)', ['error' => $e->getMessage()]);
+            }
+        }
+
+        if (!$remaining) {
+            return $ids[0]; // tak ada yang tersambung / Blaster tak terjangkau: biarkan Blaster yang menolak
+        }
+        arsort($remaining);
+        $pick = array_key_first($remaining);
+        $remaining[$pick] -= $weight; // perkiraan lokal sampai cache diperbarui
+        Cache::put('wa_blaster_remaining', $remaining, 20);
+
+        return $pick;
+    }
+
     /** Info nomor pengirim dari Blaster API (status koneksi + sisa kuota), null bila tidak ditemukan. */
     private static function blasterAccount(): ?array
     {
@@ -110,12 +220,17 @@ class WhatsAppService
             if (!$r->successful()) {
                 return null;
             }
-            $want = config('services.wa_blaster.account');
+            $ids = self::blasterAccountIds();
+            $found = null;
             foreach ((array) $r->json('accounts') as $a) {
-                if (!$want || $a['id'] === $want) {
-                    return $a;
+                if (!$ids || in_array($a['id'], $ids, true)) {
+                    if (!empty($a['connected'])) {
+                        return $a; // cukup satu nomor yang tersambung
+                    }
+                    $found ??= $a;
                 }
             }
+            return $found;
         } catch (\Exception $e) {
             Log::warning('[WA] Blaster accounts check failed', ['error' => $e->getMessage()]);
         }
@@ -156,7 +271,25 @@ class WhatsAppService
             return self::send($participant, $type, $message);
         }
 
+        // Satu chat saja: isi pesan lengkap jadi caption gambar (batas caption WhatsApp 1024 karakter).
+        // Bila terlalu panjang, tetap dua chat: gambar dengan caption singkat, lalu teks.
+        if (mb_strlen($message) <= 1024) {
+            $caption = $message;
+        }
+
         $log = self::createLog($participant, $type, $imageUrl ?? $imagePath);
+
+        // Lewat Blaster: gambar + teks jadi satu item antrean (gambar dulu, jeda singkat, lalu teks),
+        // sehingga ikut jeda/kuota dan statusnya terlacak. Butuh URL gambar publik (https).
+        if (self::useBlaster() && $imageUrl && str_starts_with($imageUrl, 'https://')) {
+            try {
+                return self::sendViaBlaster($participant, $log, $message, $imageUrl, $caption ?? $message);
+            } catch (\Exception $e) {
+                $log->update(['status' => 'failed', 'response_message' => 'Exception: ' . $e->getMessage()]);
+                Log::error('[WA] Exception during sendWithImage (blaster)', ['error' => $e->getMessage()]);
+                return false;
+            }
+        }
 
         $payload = [
             'to'      => $participant->whatsapp,

@@ -291,6 +291,13 @@
                             @endforeach
                         </select>
                     </div>
+                    <div class="form-group" id="import_session_group" style="display:none">
+                        <label for="import_default_session_id">Sesi Bawaan</label>
+                        <select class="form-control" id="import_default_session_id" name="default_session_id">
+                            <option value="">-- Tanpa sesi / ikuti kolom "sesi" di CSV --</option>
+                        </select>
+                        <small class="text-muted d-block mt-1">Dipakai untuk baris CSV yang kolom <b>sesi</b>-nya kosong. Kolom <b>sesi</b> di CSV (nomor urut sesi: 1, 2, ... atau judul sesi persis) akan menimpa pilihan ini.</small>
+                    </div>
                     <div class="form-group">
                         <label for="import_status_option">Status Peserta Setelah Diimpor</label>
                         <select class="form-control" id="import_status_option" name="status_option">
@@ -316,12 +323,13 @@
                         <input type="file" class="form-control-file" id="import_file" name="file" accept=".csv,.txt" required>
                         <small class="text-muted d-block mt-1">
                             Kolom yang didukung (baris pertama harus header, urutan bebas):
-                            <strong>nama, email, whatsapp, tipe, nim, program_studi, fakultas, jabatan, unit, no_kursi, kode_registrasi</strong>.<br>
+                            <strong>nama, email, whatsapp, tipe, nim, program_studi, fakultas, jabatan, unit, no_kursi, sesi, kode_registrasi</strong>.<br>
                             &bull; <strong>nama</strong>, <strong>whatsapp</strong>, <strong>tipe</strong> wajib diisi.<br>
                             &bull; <strong>tipe</strong>: mahasiswa, dosen, tendik, atau umum.<br>
                             &bull; <strong>nim</strong>: khusus mahasiswa. <strong>jabatan</strong>: khusus dosen/tendik.<br>
                             &bull; <strong>unit</strong>: nama fakultas/prodi sesuai Master Data Unit di bawah (opsional).<br>
                             &bull; <strong>no_kursi</strong>: nomor kursi (opsional), harus unik per event — baris dengan kursi yang sudah dipakai akan dilewati.<br>
+                            &bull; <strong>sesi</strong>: sesi peserta (opsional) — isi nomor urut sesi (1, 2, ...) sesuai urutan waktu, atau judul sesi persis. Baris dengan sesi yang tidak dikenali akan dilewati.<br>
                             &bull; <strong>kode_registrasi</strong>: kode undangan/QR yang sudah ditentukan sendiri (opsional, kosongkan untuk digenerate otomatis). Harus unik di seluruh sistem, dan hanya berlaku jika status peserta langsung <strong>Disetujui</strong> — untuk status Pending, kode baru tetap dibuat otomatis saat panitia menyetujui nanti.
                         </small>
                     </div>
@@ -386,6 +394,22 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+        var importSessions = @json($importSessionsByEvent);
+        var importEventSelect = document.getElementById('import_event_id');
+        if (importEventSelect) {
+            importEventSelect.addEventListener('change', function () {
+                var list = importSessions[importEventSelect.value] || [];
+                var sel = document.getElementById('import_default_session_id');
+                sel.innerHTML = '<option value="">-- Tanpa sesi / ikuti kolom "sesi" di CSV --</option>';
+                list.forEach(function (s, i) {
+                    var o = document.createElement('option');
+                    o.value = s.id; o.textContent = 'Sesi ' + (i + 1) + ' — ' + s.title;
+                    sel.appendChild(o);
+                });
+                document.getElementById('import_session_group').style.display = list.length ? '' : 'none';
+            });
+        }
 
         var sendWaCheckbox = document.getElementById('import_send_wa');
         var statusOptionSelect = document.getElementById('import_status_option');

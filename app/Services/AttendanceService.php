@@ -96,7 +96,7 @@ class AttendanceService
             $start = Carbon::parse($session->start_datetime);
             $end = $session->end_datetime ? Carbon::parse($session->end_datetime) : $start->copy()->addHours(self::SELF_FALLBACK_HOURS);
 
-            return [$start->copy()->subMinutes(self::SELF_OPEN_BEFORE_MIN), $end];
+            return [self::openAt($event, $start->copy()->subMinutes(self::SELF_OPEN_BEFORE_MIN)), $end];
         }
 
         if (!$session && $event->session_mode !== 'none' && $event->session_mode !== null) {
@@ -105,7 +105,7 @@ class AttendanceService
                 $first = Carbon::parse($sessions->min('start_datetime'));
                 $last = Carbon::parse($sessions->max(fn ($x) => $x->end_datetime ?: Carbon::parse($x->start_datetime)->addHours(self::SELF_FALLBACK_HOURS)));
 
-                return [$first->copy()->subMinutes(self::SELF_OPEN_BEFORE_MIN), $last];
+                return [self::openAt($event, $first->copy()->subMinutes(self::SELF_OPEN_BEFORE_MIN)), $last];
             }
         }
 
@@ -116,6 +116,19 @@ class AttendanceService
         $end = $event->end_date ? Carbon::parse($event->end_date) : $start->copy()->addHours(self::SELF_FALLBACK_HOURS);
 
         return [$start->copy()->subMinutes(self::SELF_OPEN_BEFORE_MIN), $end];
+    }
+
+    /** Jam buka presensi mandiri: yang lebih awal antara hasil hitungan (sesi - 60 menit) dan jam mulai event yang diatur admin. */
+    private static function openAt(Event $event, Carbon $computed): Carbon
+    {
+        if ($event->start_date) {
+            $eventStart = Carbon::parse($event->start_date);
+            if ($eventStart->lt($computed)) {
+                return $eventStart;
+            }
+        }
+
+        return $computed;
     }
 
     /** Pesan alasan bila presensi mandiri belum/tidak bisa dipakai, null bila boleh. */
@@ -249,8 +262,10 @@ class AttendanceService
 
         return ($session ? "🕒 *Sesi Anda:* " . self::sessionLabel($session) . "\n\n" : '')
             . "✅ *Cara presensi:*\n"
-            . "1️⃣ Tunjukkan QR Code undangan ini ke petugas, *atau*\n"
-            . "2️⃣ Presensi mandiri di lokasi: scan QR yang ditampilkan panitia di layar/meja registrasi, lalu masukkan kode undangan Anda.\n"
+            . ($code
+                ? "1️⃣ Buka tautan undangan di bawah, klik kotak *ABSENSI DATANG* (\"Klik Tampilkan\") untuk memunculkan QR Code, lalu tunjukkan ke petugas, *atau*\n"
+                : "1️⃣ Tunjukkan QR Code undangan Anda ke petugas, *atau*\n")
+            . "2️⃣ Presensi mandiri di lokasi: scan QR yang ditampilkan panitia di layar/meja registrasi, lalu cari nama Anda (atau masukkan kode registrasi) dan klik *Saya hadir*.\n"
             . ($when ? "🕒 {$when}\n" : '')
             . "Simpan kode undangan Anda dan jangan dibagikan ke orang lain.\n\n"
             . ($code ? "🎫 *Undangan digital, detail acara & kode Anda:*\n" . route('invitation.show', ['code' => $code]) . "\n\n" : '')

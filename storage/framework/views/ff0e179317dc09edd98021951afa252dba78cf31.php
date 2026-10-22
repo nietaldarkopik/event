@@ -43,6 +43,18 @@
                     </div>
                 </div>
 
+                <div class="mb-3 d-flex justify-content-center align-items-center flex-wrap" style="gap:1rem">
+                    <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input" id="voiceOn">
+                        <label class="custom-control-label" for="voiceOn"><i class="fas fa-volume-up"></i> Suara</label>
+                    </div>
+                    <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input" id="voiceName">
+                        <label class="custom-control-label" for="voiceName">Sebut nama</label>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="voiceTest">Tes suara</button>
+                </div>
+
                 <div id="reader" width="600px"></div>
                 <div class="mt-3">
                     <div class="input-group">
@@ -81,6 +93,41 @@
     let lastCode = null;
     let lastScanTime = 0;
     const RESCAN_COOLDOWN_MS = 4000;
+
+    // ---- Suara (Web Speech API bawaan browser, tanpa file audio / layanan luar) ----
+    // Pengaturan disimpan per browser. Browser baru mau bersuara setelah ada interaksi di halaman
+    // (klik switch / "Tes suara" / tombol kamera), jadi klik "Tes suara" sekali setelah halaman dibuka.
+    const voiceOn = document.getElementById('voiceOn');
+    const voiceName = document.getElementById('voiceName');
+    const store = {
+        get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v === '1'; } catch (e) { return d; } },
+        set: (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch (e) {} }
+    };
+    voiceOn.checked = store.get('scanner.voice', true);
+    voiceName.checked = store.get('scanner.voiceName', true);
+    voiceOn.addEventListener('change', () => store.set('scanner.voice', voiceOn.checked));
+    voiceName.addEventListener('change', () => store.set('scanner.voiceName', voiceName.checked));
+
+    function speak(text) {
+        if (!voiceOn.checked || !('speechSynthesis' in window) || !text) return;
+        try {
+            window.speechSynthesis.cancel(); // jangan menumpuk bila scan beruntun
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'id-ID';
+            const v = window.speechSynthesis.getVoices().find(x => x.lang && x.lang.toLowerCase().replace('_', '-').startsWith('id'));
+            if (v) u.voice = v;
+            u.rate = 0.95;
+            window.speechSynthesis.speak(u);
+        } catch (e) { /* suara hanya pelengkap */ }
+    }
+    if ('speechSynthesis' in window) window.speechSynthesis.getVoices(); // pancing daftar suara dimuat
+    document.getElementById('voiceTest').addEventListener('click', () => {
+        const wasOn = voiceOn.checked;
+        voiceOn.checked = true;
+        speak('Selamat datang');
+        voiceOn.checked = wasOn;
+        if (!wasOn) alert('Suara sedang dimatikan; aktifkan switch "Suara" agar scan bersuara.');
+    });
 
     function onScanSuccess(decodedText, decodedResult) {
         if (isProcessing) return;
@@ -156,7 +203,8 @@
                         </div>
                     `);
 
-                // Audio feedback could go here
+                const who = voiceName.checked && response.participant ? ', ' + response.participant : '';
+                speak((scanType == 'check_in' ? 'Selamat datang' : 'Terima kasih') + who);
             },
             error: function (xhr) {
                 let msg = xhr.responseJSON ? xhr.responseJSON.message : 'Terjadi kesalahan system';
@@ -166,6 +214,7 @@
                             <p>${msg}</p>
                         </div>
                     `);
+                speak('Gagal. ' + msg);
             },
             complete: function () {
                 // Small delay so a person still in frame doesn't get

@@ -38,7 +38,8 @@ Route::get('/calendar', [\App\Http\Controllers\PublicEventController::class, 'ca
 Route::get('/undangan/{code}', [\App\Http\Controllers\PublicEventController::class, 'invitation'])->name('invitation.show');
 // Presensi mandiri peserta (dibuka lewat QR layar di lokasi acara)
 Route::get('/presensi/{slug}', [\App\Http\Controllers\SelfAttendanceController::class, 'show'])->name('attendance.self');
-Route::post('/presensi/{slug}', [\App\Http\Controllers\SelfAttendanceController::class, 'submit'])->middleware('throttle:12,1')->name('attendance.self.submit');
+Route::get('/presensi/{slug}/cari', [\App\Http\Controllers\SelfAttendanceController::class, 'search'])->middleware('throttle:600,1')->name('attendance.self.search');
+Route::post('/presensi/{slug}', [\App\Http\Controllers\SelfAttendanceController::class, 'submit'])->middleware('throttle:120,1')->name('attendance.self.submit');
 Route::get('/events/{slug}', [\App\Http\Controllers\PublicEventController::class, 'show'])->name('events.show');
 Route::post('/events/certificate/claim', [\App\Http\Controllers\PublicEventController::class, 'claimCertificate'])->name('events.certificate.claim');
 Route::post('/events/invitation/check', [\App\Http\Controllers\PublicEventController::class, 'checkInvitation'])->name('events.invitation.check');
@@ -197,6 +198,7 @@ Route::post('email-settings/{id}/test-email', [\App\Http\Controllers\Admin\Email
 
             // WhatsApp Logs (Admin Event perlu lihat status WA approve QR dikirim atau tidak!)
             Route::get('logs/whatsapp', [\App\Http\Controllers\Admin\WhatsAppController::class, 'index'])->name('admin.whatsapp.logs');
+            Route::post('logs/whatsapp/bulk-resend', [\App\Http\Controllers\Admin\WhatsAppController::class, 'bulkResend'])->name('admin.whatsapp.bulk-resend');
             Route::post('logs/whatsapp/{id}/resend', [\App\Http\Controllers\Admin\WhatsAppController::class, 'resend'])->name('admin.whatsapp.resend');
         });
 

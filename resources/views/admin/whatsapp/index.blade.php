@@ -70,10 +70,47 @@
             </div>
         @endif
     </div>
+    <div class="card-body border-bottom">
+        <form method="GET" action="{{ route('admin.whatsapp.logs') }}" class="form-inline">
+            <select name="status" class="form-control form-control-sm mr-2 mb-1" onchange="this.form.submit()">
+                <option value="">Semua status</option>
+                <option value="sent" {{ (request('status') === 'sent') ? 'selected' : '' }}>Terkirim ({{ $stats['sent'] }})</option>
+                <option value="failed" {{ (request('status') === 'failed') ? 'selected' : '' }}>Gagal ({{ $stats['failed'] }})</option>
+                <option value="pending" {{ (request('status') === 'pending') ? 'selected' : '' }}>Pending ({{ $stats['pending'] }})</option>
+            </select>
+            <input type="text" name="q" value="{{ request('q') }}" class="form-control form-control-sm mr-2 mb-1" placeholder="Cari nama / nomor…">
+            <select name="per_page" class="form-control form-control-sm mr-2 mb-1" onchange="this.form.submit()">
+                @foreach([25, 50, 100, 200] as $n)
+                    <option value="{{ $n }}" {{ ((int) request('per_page', 25) === $n) ? 'selected' : '' }}>{{ $n }} / halaman</option>
+                @endforeach
+            </select>
+            <button class="btn btn-sm btn-primary mr-2 mb-1"><i class="fas fa-filter"></i> Terapkan</button>
+            @if(request()->hasAny(['status', 'q']))
+                <a href="{{ route('admin.whatsapp.logs') }}" class="btn btn-sm btn-outline-secondary mb-1">Reset</a>
+            @endif
+            <span class="ml-auto small text-muted mb-1">{{ $logs->total() }} log ditemukan</span>
+        </form>
+    </div>
+    <form id="bulkForm" method="POST" action="{{ route('admin.whatsapp.bulk-resend') }}"
+          onsubmit="return confirm('Kirim ulang WhatsApp untuk log yang dipilih? Hanya yang berstatus Gagal/Pending yang diproses, dan pengiriman berjalan bertahap lewat Blaster.');">
+        @csrf
+        <input type="hidden" name="status" value="{{ request('status') }}">
+        <input type="hidden" name="q" value="{{ request('q') }}">
+        <input type="hidden" name="per_page" value="{{ request('per_page') }}">
+        <div class="card-body py-2 border-bottom d-flex align-items-center flex-wrap" style="gap:.75rem">
+            <button type="submit" class="btn btn-sm btn-success" id="bulkBtn" disabled><i class="fas fa-paper-plane"></i> Resend terpilih (<span id="bulkCount">0</span>)</button>
+            <div class="custom-control custom-checkbox" id="allFilteredWrap" style="display:none">
+                <input type="checkbox" class="custom-control-input" id="allFiltered" name="all_filtered" value="1">
+                <label class="custom-control-label" for="allFiltered">Pilih semua {{ $logs->total() }} hasil filter (Gagal/Pending, maks. 2000)</label>
+            </div>
+            <small class="text-muted">Hanya log Gagal/Pending jenis undangan/QR yang dikirim ulang; isi pesan memakai template bawaan.</small>
+        </div>
+    </form>
     <div class="card-body table-responsive p-0">
         <table class="table table-bordered table-hover table-striped" id="waLogTable">
             <thead class="thead-light">
                 <tr>
+                    <th style="width:36px" class="text-center"><input type="checkbox" id="checkAll" title="Pilih semua di halaman ini"></th>
                     <th style="width:60px">ID</th>
                     <th>Waktu</th>
                     <th>Peserta</th>
@@ -88,6 +125,11 @@
             <tbody>
                 @forelse($logs as $log)
                     <tr>
+                        <td class="text-center">
+                            @if($log->status !== 'sent')
+                                <input type="checkbox" class="row-check" name="ids[]" value="{{ $log->id }}" form="bulkForm">
+                            @endif
+                        </td>
                         <td class="text-center font-weight-bold">{{ $log->id }}</td>
                         <td data-order="{{ $log->created_at->timestamp }}">
                             {{ $log->created_at->format('d M Y H:i:s') }}
@@ -173,7 +215,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="text-center py-5 text-muted">
+                        <td colspan="10" class="text-center py-5 text-muted">
                             <i class="fab fa-whatsapp fa-3x mb-2 d-block"></i>
                             Belum ada riwayat pengiriman WA.<br>
                             <small>Approve salah satu registrasi di menu Registrasi untuk memulai pengiriman notifikasi WA QR kehadiran.</small>
@@ -202,9 +244,20 @@
 $(function() {
     $('#waLogTable').DataTable({
         paging: false, searching: true, autoWidth: false, responsive: true,
-        order: [[1, 'desc']],
-        columns: [null, null, null, null, null, { orderable: false }, null, { orderable: false }, { orderable: false }]
+        order: [[2, 'desc']],
+        columns: [{ orderable: false }, null, null, null, null, null, { orderable: false }, null, { orderable: false }, { orderable: false }]
     });
+
+    // ---- Pilih massal ----
+    function refreshBulk() {
+        var n = $('.row-check:checked').length, all = $('#allFiltered').is(':checked');
+        $('#bulkCount').text(all ? '{{ min($logs->total(), 2000) }}' : n);
+        $('#bulkBtn').prop('disabled', !all && n === 0);
+        $('#allFilteredWrap').toggle($('.row-check').length > 0 && $('.row-check:checked').length === $('.row-check').length && {{ $logs->total() > $logs->count() ? 'true' : 'false' }});
+        if (!$('#allFilteredWrap').is(':visible')) $('#allFiltered').prop('checked', false);
+    }
+    $('#checkAll').on('change', function () { $('.row-check').prop('checked', this.checked); refreshBulk(); });
+    $(document).on('change', '.row-check, #allFiltered', refreshBulk);
 });
 </script>
 @stop

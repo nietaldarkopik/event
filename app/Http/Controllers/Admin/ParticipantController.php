@@ -73,8 +73,9 @@ class ParticipantController extends Controller
         }
         $units = \App\Models\Unit::orderBy('parent_id')->orderBy('name')->get();
         $defaultWaTemplate = self::DEFAULT_WA_TEMPLATE;
+        $importSessionsByEvent = \Modules\Session\Models\EventSession::orderBy('start_datetime')->orderBy('id')->get(['id', 'event_id', 'title'])->groupBy('event_id');
 
-        return view('admin.participants.index', compact('participants', 'events', 'selectedEvent', 'certificateCategories', 'units', 'defaultWaTemplate', 'sessions', 'criteria', 'stats', 'q', 'perPage'));
+        return view('admin.participants.index', compact('importSessionsByEvent', 'participants', 'events', 'selectedEvent', 'certificateCategories', 'units', 'defaultWaTemplate', 'sessions', 'criteria', 'stats', 'q', 'perPage'));
     }
 
     /** Tetapkan / ubah sesi satu peserta (panitia boleh melampaui kuota; sisa kuota dikembalikan untuk info). */
@@ -402,9 +403,19 @@ class ParticipantController extends Controller
             'event_id' => 'required|exists:events,id',
             'file' => 'required|mimes:csv,txt',
             'status_option' => 'nullable|in:auto,approved,pending',
+            'default_session_id' => 'nullable|integer',
         ]);
 
         $event = \App\Models\Event::findOrFail($request->event_id);
+
+        // Sesi event: dipakai untuk mencocokkan kolom "sesi" di CSV (nomor urut atau judul) dan sesi bawaan.
+        $eventSessions = \Modules\Session\Models\EventSession::where('event_id', $event->id)->orderBy('start_datetime')->orderBy('id')->get();
+        $defaultSessionId = $request->input('default_session_id') ?: null;
+        if ($defaultSessionId && !$eventSessions->contains('id', (int) $defaultSessionId)) {
+            return redirect()->back()->with('error', 'Sesi bawaan yang dipilih bukan milik event ini.');
+        }
+        $sessionByNumber = $eventSessions->values()->mapWithKeys(fn ($s, $i) => [(string) ($i + 1) => $s->id]);
+        $sessionByTitle = $eventSessions->mapWithKeys(fn ($s) => [strtolower(trim($s->title)) => $s->id]);
         $file = $request->file('file');
         $statusOption = $request->input('status_option', 'auto');
         // Kotak centang yang tidak dicentang TIDAK ikut dikirim browser, jadi "tidak ada" = jangan kirim.
@@ -424,6 +435,7 @@ class ParticipantController extends Controller
             'jabatan' => 'jabatan',
             'unit' => 'unit',
             'no_kursi' => 'seat_number', 'nomor_kursi' => 'seat_number', 'seat_number' => 'seat_number', 'kursi' => 'seat_number',
+            'sesi' => 'session', 'session' => 'session',
             'kode_registrasi' => 'registration_code', 'kode' => 'registration_code', 'registration_code' => 'registration_code',
         ];
 
@@ -462,6 +474,17 @@ class ParticipantController extends Controller
                     ? ($units[strtolower($data['unit'])] ?? null)
                     : null;
                 $seatNumber = $data['seat_number'] ?? '';
+
+                // Sesi: kolom "sesi" (nomor urut 1,2,.. atau judul sesi) menimpa sesi bawaan; kosong = sesi bawaan.
+                $sessionId = $defaultSessionId;
+                $sessionRaw = strtolower($data['session'] ?? '');
+                if ($sessionRaw !== '') {
+                    $sessionId = $sessionByNumber[$sessionRaw] ?? $sessionByTitle[$sessionRaw] ?? null;
+                    if (!$sessionId) {
+                        $errors++; // sesi tidak dikenali: lewati agar tidak salah masuk sesi
+                        continue;
+                    }
+                }
                 $registrationCode = $data['registration_code'] ?? '';
 
                 // Check duplicate email in this event
@@ -494,6 +517,7 @@ class ParticipantController extends Controller
 
                     $participant = \App\Models\Participant::create([
                         'event_id' => $event->id,
+                        'session_id' => $sessionId,
                         'name' => $name,
                         'email' => $email ?: null,
                         'whatsapp' => $whatsapp,
@@ -526,8 +550,9 @@ class ParticipantController extends Controller
                         ]);
 
                         if ($sendWa) {
-                            $participant->setRelation('event', $event);
-                            $this->sendInvitationWhatsApp($participant, $invitation, 'invitation', $waMessageTemplate);
+                            // Lewat queue: ratusan peserta tidak muat dalam batas waktu request PHP.
+                            // Dikirim setelah transaksi impor commit, supaya data peserta sudah ada.
+                            \App\Jobs\SendInvitationWhatsAppJob::dispatch($participant->id, $invitation->id, 'invitation', $waMessageTemplate)->afterCommit();
                         }
                     }
                     // status === 'pending': no invitation/WA yet — admin approves
@@ -544,7 +569,7 @@ class ParticipantController extends Controller
             fclose($handle);
 
             return redirect()->route('admin.participants.index')->with('success', "Import selesai! $imported data berhasil diimport. $errors data duplikat/dilewati."
-                . ($sendWa ? '' : ' WhatsApp tidak dikirim; kirim nanti lewat tombol WhatsApp pada tiap peserta.'));
+                . ($sendWa ? ' WhatsApp dikirim bertahap di latar belakang; pantau di Log WhatsApp.' : ' WhatsApp tidak dikirim; kirim nanti lewat tombol WhatsApp pada tiap peserta.'));
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
@@ -556,11 +581,11 @@ class ParticipantController extends Controller
      */
     public function downloadImportTemplate()
     {
-        $columns = ['nama', 'email', 'whatsapp', 'tipe', 'nim', 'program_studi', 'fakultas', 'jabatan', 'unit', 'no_kursi', 'kode_registrasi'];
+        $columns = ['nama', 'email', 'whatsapp', 'tipe', 'nim', 'program_studi', 'fakultas', 'jabatan', 'unit', 'no_kursi', 'sesi', 'kode_registrasi'];
         $examples = [
-            ['Budi Santoso', 'budi.santoso@example.com', '081234567890', 'mahasiswa', '2110631010001', 'Teknik Sipil', 'Fakultas Teknik', '', 'Prodi Teknik Sipil', 'A1', ''],
-            ['Dr. Siti Aminah', 'siti.aminah@example.com', '081298765432', 'dosen', '', '', 'Fakultas Ekonomi & Bisnis', 'Dosen Manajemen', 'Prodi Manajemen', 'A2', 'EVT4VIP001'],
-            ['Andi Wijaya', 'andi.wijaya@example.com', '081211223344', 'umum', '', '', '', '', '', '', ''],
+            ['Budi Santoso', 'budi.santoso@example.com', '081234567890', 'mahasiswa', '2110631010001', 'Teknik Sipil', 'Fakultas Teknik', '', 'Prodi Teknik Sipil', 'A1', '1', ''],
+            ['Dr. Siti Aminah', 'siti.aminah@example.com', '081298765432', 'dosen', '', '', 'Fakultas Ekonomi & Bisnis', 'Dosen Manajemen', 'Prodi Manajemen', 'A2', '2', 'EVT4VIP001'],
+            ['Andi Wijaya', 'andi.wijaya@example.com', '081211223344', 'umum', '', '', '', '', '', '', '', ''],
         ];
 
         $callback = function () use ($columns, $examples) {

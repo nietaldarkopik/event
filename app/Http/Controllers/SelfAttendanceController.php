@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceLog;
 use App\Models\Event;
+use App\Models\Invitation;
 use App\Services\AttendanceService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -52,7 +54,8 @@ class SelfAttendanceController extends Controller
     {
         $event = $this->event($slug);
         $data = $request->validate([
-            'code' => 'required|string|max:60',
+            'code' => 'required_without:invitation_id|nullable|string|max:60',
+            'invitation_id' => 'required_without:code|nullable|integer',
             'type' => 'required|in:check_in,check_out',
         ]);
 
@@ -64,8 +67,15 @@ class SelfAttendanceController extends Controller
             return $this->render($event, $request, ['error' => $reason]);
         }
 
-        [$invitation, $error] = AttendanceService::findInvitation($event, $data['code']);
-        if (!$invitation) {
+        if (!empty($data['invitation_id'])) {
+            // Dipilih dari hasil pencarian nama; harus undangan aktif milik event ini.
+            $invitation = Invitation::with('participant')->where('event_id', $event->id)->where('is_active', true)->find($data['invitation_id']);
+            $error = 'Peserta tidak ditemukan untuk event ini. Silakan cari ulang.';
+            $data['code'] = $invitation->unique_code ?? '';
+        } else {
+            [$invitation, $error] = AttendanceService::findInvitation($event, $data['code']);
+        }
+        if (!$invitation || !$invitation->participant) {
             return $this->render($event, $request, ['error' => $error, 'old_code' => $data['code']]);
         }
 
@@ -104,6 +114,57 @@ class SelfAttendanceController extends Controller
             'late' => $late,
             'session' => $usesSessions ? AttendanceService::sessionLabel($participant->session) : null,
         ]]);
+    }
+
+    /**
+     * Pencarian peserta untuk autocomplete (JSON). Butuh bukti scan QR lokasi, sama seperti submit.
+     * Kode registrasi lengkap = cocok persis; selain itu dianggap nama dengan wildcard (spasi / * / % memisahkan
+     * potongan kata, mis. "eul sop" cocok "EULIS RIANTI SOPANIA"). Kode undangan tidak pernah ikut dikirim.
+     */
+    public function search(Request $request, string $slug)
+    {
+        $event = $this->event($slug);
+        if (!$this->hasProof($request, $event)) {
+            return response()->json(['error' => 'Verifikasi lokasi habis. Scan ulang QR yang sedang tampil di layar panitia.'], 403);
+        }
+
+        $q = trim((string) $request->query('q', ''));
+        if (mb_strlen($q) < 3) {
+            return response()->json(['results' => []]);
+        }
+
+        $query = Invitation::with('participant.session')->where('event_id', $event->id)->where('is_active', true)
+            ->whereHas('participant', fn ($p) => $p->whereNull('deleted_at'));
+
+        $byCode = (clone $query)->whereRaw('UPPER(unique_code) = ?', [strtoupper($q)])->first();
+        if ($byCode) {
+            $found = collect([$byCode]);
+        } else {
+            $words = array_values(array_filter(preg_split('/[\s*%]+/u', $q)));
+            $like = '%' . implode('%', array_map(fn ($w) => addcslashes($w, '%_\\'), $words)) . '%';
+            $found = $query->whereHas('participant', fn ($p) => $p->where('name', 'like', $like))
+                ->get()->sortBy(fn ($i) => $i->participant->name)->take(10)->values();
+        }
+
+        $done = AttendanceLog::where('event_id', $event->id)->where('type', 'check_in')
+            ->whereIn('participant_id', $found->pluck('participant_id'))->pluck('participant_id')->all();
+
+        return response()->json(['results' => $found->map(function ($inv) use ($done) {
+            $p = $inv->participant;
+
+            return [
+                'id' => $inv->id,
+                'name' => $p->name,
+                'nim' => $p->nim,
+                'prodi' => $p->program_studi,
+                'fakultas' => $p->fakultas,
+                'jabatan' => $p->jabatan,
+                'unit' => $p->unit,
+                'session' => AttendanceService::sessionLabel($p->session),
+                'whatsapp' => $p->whatsapp ? preg_replace('/(\d{4})\d+(\d{3})$/', '$1****$2', $p->whatsapp) : null,
+                'checked_in' => in_array($p->id, $done, true),
+            ];
+        })->all()]);
     }
 
     private function render(Event $event, Request $request, array $extra = [])

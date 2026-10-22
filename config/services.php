@@ -55,6 +55,8 @@ return [
         'url'     => env('WA_BLASTER_URL', 'https://blaster.dev.unwim.ac.id/v1'),
         'key'     => env('WA_BLASTER_KEY', ''),
         'account' => env('WA_BLASTER_ACCOUNT', ''),
+        // Beberapa nomor pengirim (id akun Blaster, pisahkan koma). Kosong = pakai 'account' di atas.
+        'accounts' => env('WA_BLASTER_ACCOUNTS', ''),
     ],
 
 ];
